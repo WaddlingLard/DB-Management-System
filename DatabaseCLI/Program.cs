@@ -1,6 +1,8 @@
-﻿// Used for connecting to the MySQL database
-using MySql.Data.MySqlClient;
+﻿using System.Text;
 using System;
+
+// Used for connecting to the MySQL database
+using MySql.Data.MySqlClient;
 
 // Used for the List
 using System.Collections;
@@ -9,19 +11,40 @@ class CLIDatabase
 {
 
     private const String database = "CS310_DATABASE";
+    private const String host = "CS310_HOST";
     private const String username = "CS310_USERNAME";
     private const String port = "CS310_PORT";
     private const String password = "CS310_PASSWORD";
-    // private const int numOfEnvironmentVars = 4;
+    private readonly String[] names = ["database", "host", "username", "port", "password"];
+    // private const int numOfEnvironmentVars = 5;
 
     static void Main() 
     {
-        // Console.WriteLine($"Yo wassup gang.");
-        List<String> envVars = new List<string>();
+        CLIDatabase database = new CLIDatabase();
 
-        try {
-            envVars = grabEnvironment(CLIDatabase.database, CLIDatabase.username, CLIDatabase.port, CLIDatabase.password);
-        } catch (Exception e) {
+        // Console.WriteLine($"Yo wassup gang.");
+        List<String> envVars = new List<String>();
+        StringBuilder connectionBuilder = new StringBuilder();
+        String connectionString = "";
+
+        try 
+        {
+            envVars = GrabEnvironment(CLIDatabase.database, CLIDatabase.host, CLIDatabase.username, CLIDatabase.port, CLIDatabase.password);
+            connectionString = BuildConnection(connectionBuilder, envVars.ToArray(), database.names);
+
+            // Connection only runs in this block
+            using (MySqlConnection db = new MySqlConnection(connectionString))
+            {
+                db.Open();
+            }
+            
+        } 
+        catch (MySqlException e)
+        {
+            Console.WriteLine($"MySql Error: {e}");
+        }
+        catch (Exception e) 
+        {
             Console.WriteLine($"Error: {e}");
         }
 
@@ -35,13 +58,17 @@ class CLIDatabase
         // Grabbing environment variables
         // String database, username, port, password;
 
+        // Console.WriteLine(connectionString);
+
         // Console.WriteLine($"{database}");
+
+        
     }
 
     //
-    static List<String> grabEnvironment(String database, String username, String port, String password) 
+    static List<String> GrabEnvironment(String database, String host, String username, String port, String password) 
     {
-        String[] envVars = [database, username, port, password];
+        String[] envVars = {database, host, username, port, password};
         List<String> data = new List<string>();
 
         for (int i = 0; i < envVars.Length; i++) 
@@ -72,6 +99,25 @@ class CLIDatabase
         }
 
         return data;
+    }
+
+    //
+    static String BuildConnection(StringBuilder build, String[] data, String[] names) 
+    {
+        try 
+        {
+            for (int i = 0; i < names.Length; i++) 
+            {
+                build.Append($"{names[i]}={data[i]};");
+            }
+        }
+        catch (IndexOutOfRangeException e)
+        {
+            throw new Exception("Data is missing indexed values");
+        }
+
+        String result = build.ToString();
+        return result;
     }
 
 }
