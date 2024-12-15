@@ -8,6 +8,7 @@ using MySql.Data.MySqlClient;
 
 // Used for the List
 using System.Collections;
+using System.Runtime.InteropServices;
 
 class CLIDatabase 
 {
@@ -141,6 +142,29 @@ class CLIDatabase
                                 Console.WriteLine("Something went wrong when creating an assignment.");
                             }
                             break;
+
+                        case "add-student":
+                            if (!classSelected)
+                            {
+                                Console.WriteLine("Class not selected.");
+                                break;
+                            }      
+                            if (!CreateStudent(db, arguments, selectedClassID))
+                            {
+                                Console.WriteLine("Something went wrong when creating a student.");                                
+                            }                      
+                            break;
+                        case "show-students":
+                            if (!classSelected)
+                            {
+                                Console.WriteLine("Class not selected.");
+                                break;
+                            }
+                            // ShowStudents(db, arguments, selectedClassID);
+                            break;
+                        case "grade":
+
+                            break;
                         case "help":
                             // PrintHelp();
                             // List all commands
@@ -154,6 +178,9 @@ class CLIDatabase
                             break;
                     }
                 }
+
+                db.Close();
+
             }
 
         } 
@@ -224,6 +251,8 @@ class CLIDatabase
                 
                 Console.WriteLine($"{courseID} | {courseNumber} | {term} | {sectionNumber} | {description}");
             }
+
+            lines.Close();
         }
 
         return true;
@@ -290,6 +319,9 @@ class CLIDatabase
 
                 classID = lines.GetInt16("class_ID");
             }
+
+            lines.Close();
+
         }
 
         // If nothing is found
@@ -333,6 +365,8 @@ class CLIDatabase
 
                 Console.WriteLine($"{courseID} | {courseNumber} | {term} | {sectionNumber} | {description}");
             }
+
+            lines.Close();
         }
 
         return true;
@@ -360,6 +394,8 @@ class CLIDatabase
                 decimal weight = lines.GetDecimal("weight");
                 Console.WriteLine($"{categoryID} | {name} | {weight}");
             }
+
+            lines.Close();
         }
 
         return true;
@@ -425,6 +461,8 @@ class CLIDatabase
                 Console.WriteLine($"{assignmentID} | {name} | {description} | {pointValue} | {categoryName}");
 
             }
+
+            lines.Close();
         }
 
         return true;
@@ -459,6 +497,119 @@ class CLIDatabase
         {
             return false;
         }
+    }
+
+    static Boolean CreateStudent(MySqlConnection connection, List<String> arguments, int classID)
+    {
+
+        int studentID = -1, insertedRow = -1;
+        String fullname = "";
+        MySqlCommand query;
+
+        // command [Username] [Student_ID] [Last] [First]
+        if (arguments.Count != 4 && arguments.Count != 1)
+        {
+            return false;
+        }
+
+        // Adding new student
+        if (arguments.Count == 4)
+        {
+            String insertion = "INSERT INTO student (username, student_ID, name) VALUES (@username, @student_ID, @name)";
+            query = new MySqlCommand(insertion, connection);
+
+            query.Parameters.AddWithValue("@username", arguments.ElementAt(0));
+
+            studentID = Convert.ToInt16(arguments.ElementAt(1));
+            query.Parameters.AddWithValue("@student_ID", studentID);
+
+            // Combining first and last name
+            fullname = String.Concat(arguments.ElementAt(3), " ", arguments.ElementAt(2));
+            query.Parameters.AddWithValue("@name", fullname);
+
+            try 
+            {
+                insertedRow = query.ExecuteNonQuery();
+
+                // if (insertedRow == 1)
+                // {
+                //     Console.WriteLine($"Student ({arguments.ElementAt(0)}) : created for class {classID}");
+                // }
+            }
+            catch (MySqlException e) 
+            {
+                Console.WriteLine("Student already exists, updating name.");
+
+                String update = $"UPDATE student SET name = @name WHERE student_ID = @student_ID";
+                query = new MySqlCommand(update, connection);
+
+                query.Parameters.AddWithValue("@name", fullname);
+                query.Parameters.AddWithValue("@student_ID", studentID);
+
+                insertedRow = query.ExecuteNonQuery();
+            }
+
+            return AssignStudent(connection, studentID, classID);
+        }
+
+        // Looking for student
+        if (arguments.Count == 1)
+        {
+            String select = $"SELECT * FROM student WHERE username = @username";
+            query = new MySqlCommand(select, connection);
+
+            query.Parameters.AddWithValue("@username", arguments.ElementAt(0));
+
+            using (MySqlDataReader lines = query.ExecuteReader())
+            {
+                while (lines.Read())
+                {
+                    studentID = lines.GetInt16("student_ID");
+                }
+
+                lines.Close();
+            }
+
+            return AssignStudent(connection, studentID, classID);
+
+        }
+
+        // Should not be possible to get here
+        return false;
+    }
+
+    // 
+    static Boolean AssignStudent(MySqlConnection connection, int studentID, int classID)
+    {
+        // Student is not selected
+        if (studentID == -1)
+        {
+            return false;
+        }
+
+        String insertion = "INSERT INTO enrollment (student_ID, class_ID) VALUES (@student_ID, @class_ID)";
+        MySqlCommand query = new MySqlCommand(insertion, connection);
+
+        query.Parameters.AddWithValue("@student_ID", studentID);
+        query.Parameters.AddWithValue("@class_ID", classID);
+
+        try
+        {
+            query.ExecuteNonQuery();
+            Console.WriteLine($"Enrolled Student ({studentID}) for class {classID}!");
+            return true;
+        }
+        catch (MySqlException e)
+        {
+            Console.WriteLine("Failed to enroll student.");
+            return false;
+        }
+    }
+
+    //
+    static void PrintHelp()
+    {
+
     }
 
     //
