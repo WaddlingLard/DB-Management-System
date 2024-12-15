@@ -479,17 +479,44 @@ class CLIDatabase
     //
     static Boolean CreateAssignment(MySqlConnection connection, List<String> arguments, int classID)
     {
+
+        MySqlCommand query;
+        int categoryID = -1;
+
         // command [Assignment_Name] [Category] [Description] [Points]
         if (arguments.Count != 4)
         {
             return false;
         }
 
+        String categoryName = arguments.ElementAt(1);
+        // Checking if category is valid for class
+        String search = "SELECT category_ID FROM category WHERE class_ID = @class_ID AND name = @name";
+        query = new MySqlCommand(search, connection); 
+
+        query.Parameters.AddWithValue("@class_ID", classID);
+        query.Parameters.AddWithValue("@name", categoryName);
+        using (MySqlDataReader lines = query.ExecuteReader())
+        {
+            if (!lines.Read())
+            {
+                Console.WriteLine("Category does not exist for this class");
+                return false;
+            }
+            else 
+            {
+                categoryID = lines.GetInt16("category_ID");
+            }
+
+            lines.Close();
+        }
+
         String insertion = "INSERT INTO assignment (name, category_ID, description, point_value, class_ID) VALUES (@name, @category_ID, @description, @point_value, @class_ID)";
-        MySqlCommand query = new MySqlCommand(insertion, connection);
+        query = new MySqlCommand(insertion, connection);
 
         query.Parameters.AddWithValue("@name", arguments.ElementAt(0));
-        query.Parameters.AddWithValue("@category_ID", Convert.ToInt16(arguments.ElementAt(1)));
+        // query.Parameters.AddWithValue("@category_ID", Convert.ToInt16(arguments.ElementAt(1)));
+        query.Parameters.AddWithValue("@category_ID", categoryID);
         query.Parameters.AddWithValue("@description", arguments.ElementAt(2));
         query.Parameters.AddWithValue("@point_value", Convert.ToDecimal(arguments.ElementAt(3)));
         query.Parameters.AddWithValue("@class_ID", classID);
