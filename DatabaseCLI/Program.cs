@@ -3,6 +3,7 @@ using System;
 using System.Text.RegularExpressions;
 using System.Data;
 
+
 // Used for connecting to the MySQL database
 using MySql.Data.MySqlClient;
 
@@ -10,6 +11,7 @@ using MySql.Data.MySqlClient;
 using System.Collections;
 using MySqlX.XDevAPI;
 using Org.BouncyCastle.Utilities;
+using System.Diagnostics;
 
 class CLIDatabase 
 {
@@ -39,6 +41,7 @@ class CLIDatabase
             connectionString = BuildConnection(connectionBuilder, envVars.ToArray(), database.names);
 
             int selectedClassID = -1;
+            Boolean classSelected = false;
 
             // Connection only runs in this block
             using (MySqlConnection db = new MySqlConnection(connectionString))
@@ -60,37 +63,81 @@ class CLIDatabase
                     {
                         continue;
                     }
+
+                    String commandLabel = arguments.ElementAt(0);
+                    arguments.RemoveAt(0);
                     
-                    switch (arguments.ElementAt(0))
+                    switch (commandLabel)
                     {
                         case "new-class":
-                            arguments.RemoveAt(0);
                             if (!CreateClass(db, arguments))
                             {
                                 Console.WriteLine("Something went wrong when creating the class");
                             }
                             break;
                         case "select-class":
-                            arguments.RemoveAt(0);
                             SelectClass(db, arguments, arguments.Count, ref selectedClassID);
                             if (selectedClassID == -1)
                             {
+                                classSelected = false;
                                 Console.WriteLine("Could not select class.");
+                            }
+                            else
+                            {
+                                classSelected = true;
                             }
                             break;
                         case "list-classes":
-                            arguments.RemoveAt(0);
                             if (!ListClasses(db, arguments))
                             {
                                 Console.WriteLine("This command does not require additional arguments. Ex: list-classes");
                             }
                             break;
                         case "show-class":
-                            arguments.RemoveAt(0);
                             if (!ShowClass(db, arguments, selectedClassID))
                             {
                                 Console.WriteLine("Could not output selected class");
                             }
+                            break;
+                        // Commands that require a selected class
+                        case "show-categories":
+                            if (!classSelected)
+                            {
+                                Console.WriteLine("Class not selected.");
+                                break;
+                            }
+                            if (!ShowCategories(db, arguments, selectedClassID))
+                            {
+                                Console.WriteLine("This command does not require additional arguments. Ex: show-categories");
+                            }
+                            break;
+                        case "add-category":
+                            if (!classSelected)
+                            {
+                                Console.WriteLine("Class not selected.");
+                                break;
+                            }  
+                            if (!CreateCategory(db, arguments, selectedClassID))
+                            {
+                                // Output assistance message to user 
+                                Console.WriteLine("Something went wrong when creating a category");
+                            }                          
+                            break;
+                        case "show-assignment":
+                            if (!classSelected)
+                            {
+                                Console.WriteLine("Class not selected.");
+                                break;
+                            }
+
+                            break;                        
+                        case "add-":
+                            if (!classSelected)
+                            {
+                                Console.WriteLine("Class not selected.");
+                                break;
+                            }
+
                             break;
                         case "help":
                             // PrintHelp();
@@ -280,6 +327,62 @@ class CLIDatabase
 
         return true;
     }
+
+    //
+    static Boolean ShowCategories(MySqlConnection connection, List<String> arguments, int classID)
+    {
+        if (arguments.Count != 0)
+        {
+            return false;
+        }
+
+        String select = $"SELECT * FROM category WHERE {classID} = class_ID";
+        MySqlCommand query = new MySqlCommand(select, connection);
+
+        using (MySqlDataReader lines = query.ExecuteReader())
+        {
+            Console.WriteLine("Name | Weight");
+            Console.WriteLine(CLIDatabase.whitespaceBorder);
+            while (lines.Read())
+            {
+                String name = lines.GetString("name");
+                double weight = lines.GetDouble("weight");
+                Console.WriteLine($"{name} | {weight}");
+            }
+        }
+
+        return true;
+    }
+
+    //
+    static Boolean CreateCategory(MySqlConnection connection, List<String> arguments, int classID)
+    {
+        // command [Name] [Weight]
+        if (arguments.Count != 2)
+        {
+            return false;
+        }
+
+        String insertion = "INSERT INTO category (name, weight, class_ID) VALUES (@name, @weight, @class_ID)";
+        MySqlCommand query = new MySqlCommand(insertion, connection);
+
+        query.Parameters.AddWithValue("@name", arguments.ElementAt(0));
+        query.Parameters.AddWithValue("@weight", Convert.ToDecimal(arguments.ElementAt(1)));
+        query.Parameters.AddWithValue("@class_ID", classID);
+
+        int insertedRow = query.ExecuteNonQuery();
+
+        if (insertedRow == 1)
+        {
+            Console.WriteLine($"Category created for class {classID}!");
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
 
     //
     static List<String> GrabEnvironment(String database, String host, String username, String port, String password) 
