@@ -18,7 +18,9 @@ class CLIDatabase
     private const String username = "CS410_USERNAME";
     private const String port = "CS410_PORT";
     private const String password = "CS410_PASSWORD";
+    private const String whitespaceBorder = "--------------------------------------------------";
     private readonly String[] names = ["database", "host", "username", "port", "password"];
+    
 
     static void Main() 
     {
@@ -65,10 +67,15 @@ class CLIDatabase
                             }
                             break;
                         case "select-class":
-                            // SelectClass(db, arguments);
+                            // arguments.RemoveAt(0);
+                            // SelectClass(db, arguments, arguments.Count);
                             break;
                         case "list-classes":
-                            // ListClasses(db, arguments);
+                            arguments.RemoveAt(0);
+                            if (!ListClasses(db, arguments))
+                            {
+                                Console.WriteLine("This command does not require additional arguments. Ex: list-classes");
+                            }
                             break;
                         case "show-class":
                             // ShowClass(db, arguments);
@@ -101,7 +108,7 @@ class CLIDatabase
         
     }
 
-    //
+    // NEED TO ADD # of students funtionality
     static Boolean CreateClass(MySqlConnection connection, List<String> arguments)
     {   
         // command [Class Name] [Term] [Section] [Description]
@@ -122,12 +129,43 @@ class CLIDatabase
 
         if (insertedRow == 1)
         {
+            Console.WriteLine("Class Created!");
             return true;
         }
         else 
         {
             return false;
         }
+    }
+
+    //
+    static Boolean ListClasses(MySqlConnection connection, List<String> arguments)
+    {
+        if (arguments.Count != 0)
+        {
+            return false;
+        }
+
+        String select = "SELECT * FROM class";
+        MySqlCommand query = new MySqlCommand(select, connection);
+
+        using (MySqlDataReader lines = query.ExecuteReader())
+        {
+
+            Console.WriteLine("Course_Number | Term | Section_Number | Description");
+            Console.WriteLine(CLIDatabase.whitespaceBorder);
+            while (lines.Read())
+            {
+                String courseNumber = lines.GetString("course_number");
+                String term = lines.GetString("term");
+                int sectionNumber = lines.GetInt16("section_number");
+                String description = lines.GetString("description");
+                
+                Console.WriteLine($"{courseNumber} | {term} | {sectionNumber} | {description}");
+            }
+        }
+
+        return true;
     }
 
     //
