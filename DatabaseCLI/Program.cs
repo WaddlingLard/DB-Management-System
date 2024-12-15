@@ -91,6 +91,11 @@ class CLIDatabase
                             }
                             break;
                         case "show-class":
+                            if (!classSelected)
+                            {
+                                Console.WriteLine("Class not selected.");
+                                break;
+                            }
                             if (!ShowClass(db, arguments, selectedClassID))
                             {
                                 Console.WriteLine("Could not output selected class");
@@ -160,7 +165,10 @@ class CLIDatabase
                                 Console.WriteLine("Class not selected.");
                                 break;
                             }
-                            // ShowStudents(db, arguments, selectedClassID);
+                            if (!ShowStudents(db, arguments, selectedClassID))
+                            {
+                                Console.WriteLine("This command does not require additional arguments. Ex: show-students");
+                            }
                             break;
                         case "grade":
 
@@ -343,10 +351,10 @@ class CLIDatabase
         }
 
         // Class is not selected
-        if (classID == -1)
-        {
-            return false;
-        }
+        // if (classID == -1)
+        // {
+        //     return false;
+        // }
 
         String grabClass = $"SELECT * FROM class WHERE {classID} = class_ID";
         MySqlCommand query = new MySqlCommand(grabClass, connection);
@@ -604,6 +612,41 @@ class CLIDatabase
             Console.WriteLine("Failed to enroll student.");
             return false;
         }
+    }
+
+    static Boolean ShowStudents(MySqlConnection connection, List<String> arguments, int classID)
+    {
+        if (arguments.Count != 0)
+        {
+            return false;
+        }
+
+        String grabStudents =   "SELECT enrollment.student_ID, student.name, student.username " +
+                                "FROM enrollment " +
+                                "LEFT JOIN student " +
+                                "ON enrollment.student_ID = student.student_ID " + 
+                                "WHERE class_ID = @class_ID";
+        MySqlCommand query = new MySqlCommand(grabStudents, connection);
+
+        query.Parameters.AddWithValue("@class_ID", classID);
+
+        using (MySqlDataReader lines = query.ExecuteReader())
+        {
+            Console.WriteLine("Student_ID | Username | Name");
+            Console.WriteLine(CLIDatabase.whitespaceBorder);
+            while(lines.Read())
+            {
+                int studentID = lines.GetInt16("student_ID");
+                String name = lines.GetString("name");
+                String username = lines.GetString("username");
+
+                Console.WriteLine($"{studentID} | {username} | {name} ");
+            }
+
+            lines.Close();
+        }
+
+        return true;      
     }
 
     //
