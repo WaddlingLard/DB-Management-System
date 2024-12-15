@@ -3,15 +3,11 @@ using System;
 using System.Text.RegularExpressions;
 using System.Data;
 
-
 // Used for connecting to the MySQL database
 using MySql.Data.MySqlClient;
 
 // Used for the List
 using System.Collections;
-using MySqlX.XDevAPI;
-using Org.BouncyCastle.Utilities;
-using System.Diagnostics;
 
 class CLIDatabase 
 {
@@ -129,7 +125,10 @@ class CLIDatabase
                                 Console.WriteLine("Class not selected.");
                                 break;
                             }
-
+                            if (!ShowAssignments(db, arguments, selectedClassID))
+                            {
+                                Console.WriteLine("This command does not require additional arguments. Ex: show-assignment");
+                            }
                             break;                        
                         case "add-":
                             if (!classSelected)
@@ -137,7 +136,10 @@ class CLIDatabase
                                 Console.WriteLine("Class not selected.");
                                 break;
                             }
-
+                            if (!CreateAssignment(db, arguments, selectedClassID))
+                            {
+                                Console.WriteLine("Something went wrong when creating an assignment.");
+                            }
                             break;
                         case "help":
                             // PrintHelp();
@@ -210,16 +212,17 @@ class CLIDatabase
         using (MySqlDataReader lines = query.ExecuteReader())
         {
 
-            Console.WriteLine("Course_Number | Term | Section_Number | Description");
+            Console.WriteLine("Class_ID | Course_Number | Term | Section_Number | Description");
             Console.WriteLine(CLIDatabase.whitespaceBorder);
             while (lines.Read())
             {
+                int courseID = lines.GetInt16("class_ID");
                 String courseNumber = lines.GetString("course_number");
                 String term = lines.GetString("term");
                 int sectionNumber = lines.GetInt16("section_number");
                 String description = lines.GetString("description");
                 
-                Console.WriteLine($"{courseNumber} | {term} | {sectionNumber} | {description}");
+                Console.WriteLine($"{courseID} | {courseNumber} | {term} | {sectionNumber} | {description}");
             }
         }
 
@@ -271,9 +274,9 @@ class CLIDatabase
 
         query = new MySqlCommand(search, connection);
 
+        int numLines = 0;
         using (MySqlDataReader lines = query.ExecuteReader())
         {
-            int numLines = 0;
             while(lines.Read())
             {
                 numLines++;
@@ -287,6 +290,12 @@ class CLIDatabase
 
                 classID = lines.GetInt16("class_ID");
             }
+        }
+
+        // If nothing is found
+        if (numLines != 1)
+        {
+            classID = -1;
         }
 
         return classID;
@@ -312,16 +321,17 @@ class CLIDatabase
 
         using (MySqlDataReader lines = query.ExecuteReader())
         {
-            Console.WriteLine("Course_Number | Term | Section_Number | Description");
+            Console.WriteLine("Class_ID | Course_Number | Term | Section_Number | Description");
             Console.WriteLine(CLIDatabase.whitespaceBorder);
             while (lines.Read())
             {
+                int courseID = lines.GetInt16("class_ID");
                 String courseNumber = lines.GetString("course_number");
                 String term = lines.GetString("term");
                 int sectionNumber = lines.GetInt16("section_number");
                 String description = lines.GetString("description");
 
-                Console.WriteLine($"{courseNumber} | {term} | {sectionNumber} | {description}");
+                Console.WriteLine($"{courseID} | {courseNumber} | {term} | {sectionNumber} | {description}");
             }
         }
 
@@ -341,13 +351,14 @@ class CLIDatabase
 
         using (MySqlDataReader lines = query.ExecuteReader())
         {
-            Console.WriteLine("Name | Weight");
+            Console.WriteLine("Category_ID | Name | Weight");
             Console.WriteLine(CLIDatabase.whitespaceBorder);
             while (lines.Read())
             {
+                int categoryID = lines.GetInt16("category_ID");
                 String name = lines.GetString("name");
-                double weight = lines.GetDouble("weight");
-                Console.WriteLine($"{name} | {weight}");
+                decimal weight = lines.GetDecimal("weight");
+                Console.WriteLine($"{categoryID} | {name} | {weight}");
             }
         }
 
@@ -383,6 +394,72 @@ class CLIDatabase
         }
     }
 
+    static Boolean ShowAssignments(MySqlConnection connection, List<String> arguments, int classID)
+    {
+        if (arguments.Count != 0)
+        {
+            return false;
+        }
+
+        String select = "SELECT *, category.name AS category_name " +
+                        "FROM assignment " +
+                        "LEFT JOIN category ON category.category_ID = assignment.category_ID " +
+                        $"WHERE {classID} = assignment.class_ID";
+        MySqlCommand query = new MySqlCommand(select, connection);
+
+        using (MySqlDataReader lines = query.ExecuteReader())
+        {
+            Console.WriteLine("Assignment_ID | Name | Description | Point_Value | Category_Name");
+            Console.WriteLine(CLIDatabase.whitespaceBorder);
+            while (lines.Read())
+            {
+                int assignmentID = lines.GetInt16("assignment_ID");
+                String name = lines.GetString("name");
+                String description = lines.GetString("description");
+                float pointValue = lines.GetFloat("point_value");
+                // int categoryID = lines.GetInt16("category.name");
+
+                String categoryName = lines.GetString("category_name");
+
+                // Console.WriteLine($"{assignmentID} | {name} | {description} | {pointValue} | {categoryID}");
+                Console.WriteLine($"{assignmentID} | {name} | {description} | {pointValue} | {categoryName}");
+
+            }
+        }
+
+        return true;
+    }
+
+    //
+    static Boolean CreateAssignment(MySqlConnection connection, List<String> arguments, int classID)
+    {
+        // command [Assignment_Name] [Category] [Description] [Points]
+        if (arguments.Count != 4)
+        {
+            return false;
+        }
+
+        String insertion = "INSERT INTO assignment (name, category_ID, description, point_value, class_ID) VALUES (@name, @category_ID, @description, @point_value, @class_ID)";
+        MySqlCommand query = new MySqlCommand(insertion, connection);
+
+        query.Parameters.AddWithValue("@name", arguments.ElementAt(0));
+        query.Parameters.AddWithValue("@category_ID", Convert.ToInt16(arguments.ElementAt(1)));
+        query.Parameters.AddWithValue("@description", arguments.ElementAt(2));
+        query.Parameters.AddWithValue("@point_value", Convert.ToDecimal(arguments.ElementAt(3)));
+        query.Parameters.AddWithValue("@class_ID", classID);
+        
+        int insertedRow = query.ExecuteNonQuery();
+
+        if (insertedRow == 1)
+        {
+            Console.WriteLine("Assignment Created!");
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
 
     //
     static List<String> GrabEnvironment(String database, String host, String username, String port, String password) 
