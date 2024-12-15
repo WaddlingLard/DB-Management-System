@@ -1,31 +1,33 @@
 ﻿using System.Text;
 using System;
+using System.Text.RegularExpressions;
+using System.Data;
 
 // Used for connecting to the MySQL database
 using MySql.Data.MySqlClient;
 
 // Used for the List
 using System.Collections;
+using MySqlX.XDevAPI;
 
 class CLIDatabase 
 {
 
-    private const String database = "CS310_DATABASE";
-    private const String host = "CS310_HOST";
-    private const String username = "CS310_USERNAME";
-    private const String port = "CS310_PORT";
-    private const String password = "CS310_PASSWORD";
+    private const String database = "CS410_DATABASE";
+    private const String host = "CS410_HOST";
+    private const String username = "CS410_USERNAME";
+    private const String port = "CS410_PORT";
+    private const String password = "CS410_PASSWORD";
     private readonly String[] names = ["database", "host", "username", "port", "password"];
-    // private const int numOfEnvironmentVars = 5;
 
     static void Main() 
     {
         CLIDatabase database = new CLIDatabase();
 
-        // Console.WriteLine($"Yo wassup gang.");
         List<String> envVars = new List<String>();
         StringBuilder connectionBuilder = new StringBuilder();
         String connectionString = "";
+        Boolean terminate = false;
 
         try 
         {
@@ -36,8 +38,57 @@ class CLIDatabase
             using (MySqlConnection db = new MySqlConnection(connectionString))
             {
                 db.Open();
+                // Console.WriteLine("Connected to Database!");
+                Console.WriteLine("Welcome to the School Management System!");
+
+                // CLI Interface
+                while (!terminate)
+                {
+                    Console.Write("Command: ");
+                    String command = Console.ReadLine();
+                    // String[] arguments = ParseArguments(command);
+                    List<String> arguments = ParseArguments(command);
+
+                    // Command must be populated
+                    if (String.IsNullOrEmpty(command))
+                    {
+                        continue;
+                    }
+                    
+                    switch (arguments.ElementAt(0))
+                    {
+                        case "new-class":
+                            arguments.RemoveAt(0);
+                            if (!CreateClass(db, arguments))
+                            {
+                                Console.WriteLine("Something went wrong when creating the class");
+                            }
+                            break;
+                        case "select-class":
+                            // SelectClass(db, arguments);
+                            break;
+                        case "list-classes":
+                            // ListClasses(db, arguments);
+                            break;
+                        case "show-class":
+                            // ShowClass(db, arguments);
+                            break;
+                        case "help":
+                            // PrintHelp();
+                            // List all commands
+                            break;
+                        case "exit":
+                            Console.WriteLine("Bye!");
+                            terminate = true;
+                            break;
+                        default:
+                            Console.WriteLine("Unrecognized Command.");
+                            break;
+                    }
+
+                }
             }
-            
+
         } 
         catch (MySqlException e)
         {
@@ -47,22 +98,36 @@ class CLIDatabase
         {
             Console.WriteLine($"Error: {e}");
         }
-
-        // int index = 1;
-        // foreach (String element in envVars) 
-        // {
-        //     Console.WriteLine($"Env {index}: {element}");
-        //     index++;
-        // }
-    
-        // Grabbing environment variables
-        // String database, username, port, password;
-
-        // Console.WriteLine(connectionString);
-
-        // Console.WriteLine($"{database}");
-
         
+    }
+
+    //
+    static Boolean CreateClass(MySqlConnection connection, List<String> arguments)
+    {   
+        // command [Class Name] [Term] [Section] [Description]
+        if (arguments.Count != 4)
+        {
+            return false;
+        }
+
+        String insertion = "INSERT INTO class (course_number, term, section_number, description) VALUES (@course_number, @term, @section_number, @description)";
+        MySqlCommand query = new MySqlCommand(insertion, connection);
+
+        query.Parameters.AddWithValue("@course_number", arguments.ElementAt(0));
+        query.Parameters.AddWithValue("@term", arguments.ElementAt(1));
+        query.Parameters.AddWithValue("@section_number", Convert.ToInt16(arguments.ElementAt(2)));
+        query.Parameters.AddWithValue("@description", arguments.ElementAt(3));
+
+        int insertedRow = query.ExecuteNonQuery();
+
+        if (insertedRow == 1)
+        {
+            return true;
+        }
+        else 
+        {
+            return false;
+        }
     }
 
     //
@@ -81,6 +146,8 @@ class CLIDatabase
                 if (dataIsNull) {
                     continue;
                 } 
+
+                // Console.WriteLine(value);
             
                 data.Add(value);
             }
@@ -95,6 +162,7 @@ class CLIDatabase
         // Missing data
         if (data.Count != envVars.Length)
         {
+            // Console.WriteLine($"{data.Count} : {envVars.Length}");
             throw new Exception("Missing environment data from provided arguments");
         }
 
@@ -118,6 +186,35 @@ class CLIDatabase
 
         String result = build.ToString();
         return result;
+    }
+
+    //
+    static List<String> ParseArguments(String arguments)
+    {
+        List<String> strings = new List<String>();
+
+        // Using Regex to split up arguments (Quotes and spaces)
+        String pattern = @"(\""[^\""]*\"")|(\S+)";
+        MatchCollection segment = Regex.Matches(arguments, pattern);
+
+        // Add to list for each argument
+        foreach(Match phrase in segment)
+        {
+            if (!String.IsNullOrWhiteSpace(phrase.Value))
+            {
+                strings.Add(phrase.Value.Trim('"'));
+            }
+        }
+
+        // Outputting Arguments
+        // Console.Write("Arguments:");
+        // foreach (String word in strings)
+        // {
+        //     Console.Write(word + ", ");
+        // }
+        // Console.WriteLine();
+
+        return strings;
     }
 
 }
