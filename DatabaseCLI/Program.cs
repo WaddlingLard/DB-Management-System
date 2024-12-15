@@ -9,6 +9,7 @@ using MySql.Data.MySqlClient;
 // Used for the List
 using System.Collections;
 using MySqlX.XDevAPI;
+using Org.BouncyCastle.Utilities;
 
 class CLIDatabase 
 {
@@ -31,10 +32,13 @@ class CLIDatabase
         String connectionString = "";
         Boolean terminate = false;
 
+
         try 
         {
             envVars = GrabEnvironment(CLIDatabase.database, CLIDatabase.host, CLIDatabase.username, CLIDatabase.port, CLIDatabase.password);
             connectionString = BuildConnection(connectionBuilder, envVars.ToArray(), database.names);
+
+            int selectedClassID = -1;
 
             // Connection only runs in this block
             using (MySqlConnection db = new MySqlConnection(connectionString))
@@ -67,8 +71,12 @@ class CLIDatabase
                             }
                             break;
                         case "select-class":
-                            // arguments.RemoveAt(0);
-                            // SelectClass(db, arguments, arguments.Count);
+                            arguments.RemoveAt(0);
+                            SelectClass(db, arguments, arguments.Count, ref selectedClassID);
+                            if (selectedClassID == -1)
+                            {
+                                Console.WriteLine("Could not select class.");
+                            }
                             break;
                         case "list-classes":
                             arguments.RemoveAt(0);
@@ -78,7 +86,11 @@ class CLIDatabase
                             }
                             break;
                         case "show-class":
-                            // ShowClass(db, arguments);
+                            arguments.RemoveAt(0);
+                            if (!ShowClass(db, arguments, selectedClassID))
+                            {
+                                Console.WriteLine("Could not output selected class");
+                            }
                             break;
                         case "help":
                             // PrintHelp();
@@ -92,7 +104,6 @@ class CLIDatabase
                             Console.WriteLine("Unrecognized Command.");
                             break;
                     }
-
                 }
             }
 
@@ -161,6 +172,108 @@ class CLIDatabase
                 int sectionNumber = lines.GetInt16("section_number");
                 String description = lines.GetString("description");
                 
+                Console.WriteLine($"{courseNumber} | {term} | {sectionNumber} | {description}");
+            }
+        }
+
+        return true;
+    }
+
+    //
+    static int SelectClass(MySqlConnection connection, List<String> arguments, int numberOfArgs, ref int classID)
+    {
+
+        String courseNumber = "", term = "";
+        int sectionNumber = -1;
+
+        // [courseNumber*] [term] [sectionNumber]
+        if (numberOfArgs > 3)
+            return -1;
+
+        try 
+        {
+            courseNumber = arguments.ElementAt(0);
+            term = arguments.ElementAt(1);
+            sectionNumber = Convert.ToInt16(arguments.ElementAt(2));
+        } 
+        catch (ArgumentOutOfRangeException e)
+        {
+            // Continue execution
+        }
+
+        String search = "";
+        MySqlCommand query;
+
+        switch (numberOfArgs)
+        {
+            // Search by only course_number
+            case 1:
+                search = $"SELECT * FROM class WHERE '{courseNumber}' = course_number";
+                break;
+            // Search by course_number and term
+            case 2:
+                search = $"SELECT * FROM class WHERE '{courseNumber}' = course_number and '{term}' = term";
+                break;
+            // Search by course_number, term, and section_number
+            case 3:
+                search = $"SELECT * FROM class WHERE '{courseNumber}' = course_number and '{term}' = term and {sectionNumber} = section_number";
+                break;
+            default:
+                return -1;
+        }
+
+        query = new MySqlCommand(search, connection);
+
+        using (MySqlDataReader lines = query.ExecuteReader())
+        {
+            int numLines = 0;
+            while(lines.Read())
+            {
+                numLines++;
+
+                // Impossible to select from multiple records
+                if (numLines > 1)
+                {
+                    classID = -1;
+                    break;
+                }
+
+                classID = lines.GetInt16("class_ID");
+            }
+        }
+
+        return classID;
+    }
+
+    //
+    static Boolean ShowClass(MySqlConnection connection, List<String> arguments, int classID)
+    {
+        // Only the command itself should be provided Ex: show-class
+        if (arguments.Count != 0)
+        {
+            return false;
+        }
+
+        // Class is not selected
+        if (classID == -1)
+        {
+            return false;
+        }
+
+        String grabClass = $"SELECT * FROM class WHERE {classID} = class_ID";
+        MySqlCommand query = new MySqlCommand(grabClass, connection);
+
+        using (MySqlDataReader lines = query.ExecuteReader())
+        {
+            Console.WriteLine("Course_Number | Term | Section_Number | Description");
+            Console.WriteLine(CLIDatabase.whitespaceBorder);
+            while (lines.Read())
+            {
+                String courseNumber = lines.GetString("course_number");
+                String term = lines.GetString("term");
+                int sectionNumber = lines.GetInt16("section_number");
+                String description = lines.GetString("description");
+
                 Console.WriteLine($"{courseNumber} | {term} | {sectionNumber} | {description}");
             }
         }
