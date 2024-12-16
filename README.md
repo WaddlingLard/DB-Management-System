@@ -2,7 +2,7 @@
 
 * Author: Brian Wu & Mahala Solorzano
 * Class: CS410 Section 001
-* Semester: Fall 2024
+* Semester: Fall 2024 
 
 ## Overview
 
