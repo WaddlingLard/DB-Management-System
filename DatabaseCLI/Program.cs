@@ -20,7 +20,6 @@ class CLIDatabase
     private const String whitespaceBorder = "--------------------------------------------------";
     private readonly String[] names = ["database", "host", "username", "port", "password"];
     
-
     static void Main() 
     {
         CLIDatabase database = new CLIDatabase();
@@ -231,6 +230,7 @@ class CLIDatabase
         
     }
 
+    // Creates a class
     static Boolean CreateClass(MySqlConnection connection, List<String> arguments)
     {   
         // command [Class Name] [Term] [Section] [Description]
@@ -260,7 +260,7 @@ class CLIDatabase
         }
     }
 
-    //
+    // List all classes with students that are enrolled in them
     static Boolean ListClasses(MySqlConnection connection, List<String> arguments)
     {
         if (arguments.Count != 0)
@@ -298,7 +298,7 @@ class CLIDatabase
         return true;
     }
 
-    //
+    // Selects a class with given arguments for specificity
     static int SelectClass(MySqlConnection connection, List<String> arguments, int numberOfArgs, ref int classID)
     {
 
@@ -373,7 +373,7 @@ class CLIDatabase
         return classID;
     }
 
-    //
+    // Shows the current class
     static Boolean ShowClass(MySqlConnection connection, List<String> arguments, int classID)
     {
         // Only the command itself should be provided Ex: show-class
@@ -412,7 +412,7 @@ class CLIDatabase
         return true;
     }
 
-    //
+    // Shows all avaliable categories for the selected classs
     static Boolean ShowCategories(MySqlConnection connection, List<String> arguments, int classID)
     {
         if (arguments.Count != 0)
@@ -441,7 +441,7 @@ class CLIDatabase
         return true;
     }
 
-    //
+    // Creates a category for the selected class
     static Boolean CreateCategory(MySqlConnection connection, List<String> arguments, int classID)
     {
         // command [Name] [Weight]
@@ -470,7 +470,7 @@ class CLIDatabase
         }
     }
 
-    // 
+    // Shows all assignments in the selected class
     static Boolean ShowAssignments(MySqlConnection connection, List<String> arguments, int classID)
     {
         if (arguments.Count != 0)
@@ -509,7 +509,7 @@ class CLIDatabase
         return true;
     }
 
-    //
+    // Creates an assignment for a selected class
     static Boolean CreateAssignment(MySqlConnection connection, List<String> arguments, int classID)
     {
 
@@ -567,7 +567,7 @@ class CLIDatabase
         }
     }
 
-    // 
+    // Creates, updates, and searches for a student to be assigned to the selected class
     static Boolean CreateStudent(MySqlConnection connection, List<String> arguments, int classID)
     {
 
@@ -647,7 +647,7 @@ class CLIDatabase
         return false;
     }
 
-    // 
+    // Assigns a student to a class
     static Boolean AssignStudent(MySqlConnection connection, int studentID, int classID)
     {
         // Student is not selected
@@ -675,7 +675,7 @@ class CLIDatabase
         }
     }
 
-    // 
+    // Shows all the students that are in the selected class
     static Boolean ShowStudents(MySqlConnection connection, List<String> arguments, int classID)
     {
 
@@ -734,7 +734,7 @@ class CLIDatabase
         return true;      
     }
 
-    //
+    // Grade students assignments with provided arguments
     static Boolean Grade(MySqlConnection connection, List<String> arguments, int classID)
     {
 
@@ -836,6 +836,7 @@ class CLIDatabase
         return insertedRow == 1;
     }
 
+    // Grabs the student grade of the class and provides attempted and total scores
     static Boolean StudentGrade(MySqlConnection connection, List<String> arguments, int classID)
     {
         // command [Username]
@@ -920,13 +921,13 @@ class CLIDatabase
         return true;
     }
 
-    //
+    // Incomplete, unfortunately :'(
     static void GradeBook(MySqlConnection connection, int classID)
     {
 
     }
 
-    //
+    // Scales the weights to be equal of a 100
     static (List<int>, List<decimal>) ScaleWeights(MySqlConnection connection, int classID)
     {
         List<int> categoryIDs = new List<int>();
@@ -963,7 +964,7 @@ class CLIDatabase
         return (categoryIDs, newWeights);
     }
 
-    //
+    // Updates the weights to correctly reflect class
     static Boolean UpdateWeights(MySqlConnection connection, List<decimal> weights, List<int> category_IDs)
     {
         String update = "UPDATE category SET weight = @weight WHERE category_ID = @category_ID";
@@ -996,13 +997,13 @@ class CLIDatabase
         return true;
     }
 
-    //
+    // Incomplete, should output help commands
     static void PrintHelp()
     {
 
     }
 
-    //
+    // Grabs os environment vars for string building
     static List<String> GrabEnvironment(String database, String host, String username, String port, String password) 
     {
         String[] envVars = {database, host, username, port, password};
@@ -1041,7 +1042,7 @@ class CLIDatabase
         return data;
     }
 
-    //
+    // Builds connection string to MYSQL db
     static String BuildConnection(StringBuilder build, String[] data, String[] names) 
     {
         try 
@@ -1060,7 +1061,7 @@ class CLIDatabase
         return result;
     }
 
-    //
+    // Grabs arguments and cleans it up
     static List<String> ParseArguments(String arguments)
     {
         List<String> strings = new List<String>();
