@@ -171,7 +171,15 @@ class CLIDatabase
                             }
                             break;
                         case "grade":
-
+                            if(!classSelected)
+                            {
+                                Console.WriteLine("Class not selected.");
+                                break;
+                            }
+                            if (!Grade(db, arguments, selectedClassID))
+                            {
+                                Console.WriteLine("Something went wrong when creating a grade.");                                
+                            }
                             break;
                         case "help":
                             // PrintHelp();
@@ -203,7 +211,6 @@ class CLIDatabase
         
     }
 
-    // NEED TO ADD # of students funtionality
     static Boolean CreateClass(MySqlConnection connection, List<String> arguments)
     {   
         // command [Class Name] [Term] [Section] [Description]
@@ -443,6 +450,7 @@ class CLIDatabase
         }
     }
 
+    // 
     static Boolean ShowAssignments(MySqlConnection connection, List<String> arguments, int classID)
     {
         if (arguments.Count != 0)
@@ -539,6 +547,7 @@ class CLIDatabase
         }
     }
 
+    // 
     static Boolean CreateStudent(MySqlConnection connection, List<String> arguments, int classID)
     {
 
@@ -646,6 +655,7 @@ class CLIDatabase
         }
     }
 
+    // 
     static Boolean ShowStudents(MySqlConnection connection, List<String> arguments, int classID)
     {
 
@@ -702,6 +712,107 @@ class CLIDatabase
             }
 
         return true;      
+    }
+
+    //
+    static Boolean Grade(MySqlConnection connection, List<String> arguments, int classID)
+    {
+
+        MySqlCommand query;
+        int studentID = -1, assignmentID = -1, maxGrade = -1, insertedRow = -1;
+        Boolean gradeWarning = false;
+
+        // command [Assignment_Name] [Username] [Grade]
+        if (arguments.Count != 3)
+        {
+            Console.WriteLine("Invalid use of command.");
+            return false;
+        }
+
+        String username = arguments.ElementAt(1);
+        String assignmentName = arguments.ElementAt(0);
+        int grade = Convert.ToInt16(arguments.ElementAt(2));
+
+        String validateEnrollment = "SELECT enrollment.student_ID " + 
+                                    "FROM enrollment " +
+                                    "JOIN student " + 
+                                    "ON student.student_ID = enrollment.student_ID " + 
+                                    "WHERE class_ID = @class_ID AND username = @username";
+
+        query = new MySqlCommand(validateEnrollment, connection);
+
+        query.Parameters.AddWithValue("@class_ID", classID);
+        query.Parameters.AddWithValue("@username", username);
+        
+        using (MySqlDataReader lines = query.ExecuteReader())
+        {
+            while (lines.Read())
+            {
+                studentID = lines.GetInt16("student_ID");
+            }
+
+            lines.Close();
+        }
+
+        if (studentID == -1) 
+        {
+            Console.WriteLine("Student is not in this class.");
+            return false;
+        }
+        
+        String validateAssignment = "SELECT * FROM assignment WHERE name = @name";
+        query = new MySqlCommand(validateAssignment, connection);
+
+        query.Parameters.AddWithValue("@name", assignmentName);
+
+        using (MySqlDataReader lines = query.ExecuteReader())
+        {
+            while (lines.Read()) 
+            {
+                assignmentID = lines.GetInt16("assignment_ID");
+                maxGrade = lines.GetInt16("point_value");
+            }
+        }
+        
+        if (assignmentID == -1)
+        {
+            Console.WriteLine("Assignment does not exists for ths class.");
+            return false;
+        }
+
+        String insertion = "INSERT INTO grade (student_ID, assignment_ID, value) VALUES (@student_ID, @assignment_ID, @value)";
+        query = new MySqlCommand(insertion, connection);
+
+        query.Parameters.AddWithValue("@student_ID", studentID);
+        query.Parameters.AddWithValue("@assignment_ID", assignmentID);
+        query.Parameters.AddWithValue("@value", grade);
+
+        try
+        {
+            insertedRow = query.ExecuteNonQuery();
+            gradeWarning = grade > maxGrade;
+        }
+        catch (MySqlException e)
+        {
+            Console.WriteLine("Grade already exists, updating it instead.");
+
+            String update = "UPDATE grade SET value = @value WHERE student_ID = @student_ID AND assignment_ID = @assignment_ID";
+            query = new MySqlCommand(update, connection);
+
+            query.Parameters.AddWithValue("@value", grade);
+            query.Parameters.AddWithValue("@student_ID", studentID);
+            query.Parameters.AddWithValue("@assignment_ID", assignmentID);
+
+            insertedRow = query.ExecuteNonQuery();
+            gradeWarning = grade > maxGrade;
+        }
+
+        if (gradeWarning)
+        {
+            Console.WriteLine($"Warning: Grade inserted is higher than assignment max ({maxGrade})");
+        }
+
+        return insertedRow == 1;
     }
 
     //
