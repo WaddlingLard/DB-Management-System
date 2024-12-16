@@ -167,7 +167,7 @@ class CLIDatabase
                             }
                             if (!ShowStudents(db, arguments, selectedClassID))
                             {
-                                Console.WriteLine("This command does not require additional arguments. Ex: show-students");
+                                Console.WriteLine("This command only has 1 optional argument. Ex: show-students <name phrase>");
                             }
                             break;
                         case "grade":
@@ -245,7 +245,7 @@ class CLIDatabase
                         "FROM class " +
                         "LEFT JOIN enrollment ON class.class_ID = enrollment.class_ID " +
                         "GROUP BY class.class_ID";
-                        
+
         MySqlCommand query = new MySqlCommand(select, connection);
 
         using (MySqlDataReader lines = query.ExecuteReader())
@@ -648,35 +648,58 @@ class CLIDatabase
 
     static Boolean ShowStudents(MySqlConnection connection, List<String> arguments, int classID)
     {
-        if (arguments.Count != 0)
+
+        String grabStudents = "";
+        MySqlCommand query;
+
+        if (arguments.Count != 0 && arguments.Count != 1)
         {
             return false;
         }
 
-        String grabStudents =   "SELECT enrollment.student_ID, student.name, student.username " +
+        if (arguments.Count == 0) {
+            grabStudents =   "SELECT enrollment.student_ID, student.name, student.username " +
                                 "FROM enrollment " +
                                 "LEFT JOIN student " +
                                 "ON enrollment.student_ID = student.student_ID " + 
                                 "WHERE class_ID = @class_ID";
-        MySqlCommand query = new MySqlCommand(grabStudents, connection);
+            query = new MySqlCommand(grabStudents, connection);
 
-        query.Parameters.AddWithValue("@class_ID", classID);
+            query.Parameters.AddWithValue("@class_ID", classID);
 
-        using (MySqlDataReader lines = query.ExecuteReader())
-        {
-            Console.WriteLine("Student_ID | Username | Name");
-            Console.WriteLine(CLIDatabase.whitespaceBorder);
-            while(lines.Read())
-            {
-                int studentID = lines.GetInt16("student_ID");
-                String name = lines.GetString("name");
-                String username = lines.GetString("username");
-
-                Console.WriteLine($"{studentID} | {username} | {name} ");
-            }
-
-            lines.Close();
         }
+        else // Searching with regex
+        {
+            String name = arguments.ElementAt(0);
+            Console.WriteLine(name);
+
+            grabStudents =  "SELECT * " +  
+                            "FROM enrollment " +
+                            "JOIN student " + 
+                            "ON student.student_ID = enrollment.student_ID " + 
+                            $"WHERE enrollment.class_ID = @class_ID AND (username LIKE '%{name}%' OR name LIKE '%{name}%')";
+
+            query = new MySqlCommand(grabStudents, connection);
+
+            query.Parameters.AddWithValue("@class_ID", classID);
+
+        }
+        
+        using (MySqlDataReader lines = query.ExecuteReader())
+            {
+                Console.WriteLine("Student_ID | Username | Name");
+                Console.WriteLine(CLIDatabase.whitespaceBorder);
+                while(lines.Read())
+                {
+                    int studentID = lines.GetInt16("student_ID");
+                    String name = lines.GetString("name");
+                    String username = lines.GetString("username");
+
+                    Console.WriteLine($"{studentID} | {username} | {name} ");
+                }
+
+                lines.Close();
+            }
 
         return true;      
     }
