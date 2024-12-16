@@ -760,10 +760,11 @@ class CLIDatabase
             return false;
         }
         
-        String validateAssignment = "SELECT * FROM assignment WHERE name = @name";
+        String validateAssignment = "SELECT * FROM assignment WHERE name = @name AND class_ID = @class_ID";
         query = new MySqlCommand(validateAssignment, connection);
 
         query.Parameters.AddWithValue("@name", assignmentName);
+        query.Parameters.AddWithValue("@class_ID", classID);
 
         using (MySqlDataReader lines = query.ExecuteReader())
         {
@@ -776,7 +777,7 @@ class CLIDatabase
         
         if (assignmentID == -1)
         {
-            Console.WriteLine("Assignment does not exists for ths class.");
+            Console.WriteLine("Assignment does not exist for ths class.");
             return false;
         }
 
