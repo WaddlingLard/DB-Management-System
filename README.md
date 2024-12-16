@@ -12,6 +12,11 @@ Commands are submitted through the command line and feedback on the success or f
 
 ## Reflection
 
+(General Thoughts/ Mahala's Thoughts):
+Even though this started as a group project, we both wanted to challenge ourselves and write this program in our own ways. It was a challenge for sure, as I (Mahala Solorzano) hadn't connected directly to a database through Java before. Regardless, we both went at it and had some decent fun trying our hand at it. Eventually, though, we came to the consensus that Brian Wu's branch was much more developed than mine and thus more viable to be submitted. We both helped each other in writing our branches though, so there are no hard feelings.
+
+(Brian's Thoughts):
+
 
 
 ## Compiling and Using
