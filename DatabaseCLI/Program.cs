@@ -8,9 +8,6 @@ using MySql.Data.MySqlClient;
 
 // Used for the List
 using System.Collections;
-using System.Runtime.InteropServices;
-using System.Globalization;
-using System.Diagnostics;
 
 class CLIDatabase 
 {
@@ -195,6 +192,15 @@ class CLIDatabase
                                 Console.WriteLine("This command requires an argument. Ex: show-assignment [Username]");
                             }
                             break;
+                        case "gradebook":
+                            if(!classSelected)
+                            {
+                                Console.WriteLine("Class not selected.");
+                                break;
+                            }
+                            GradeBook(db, selectedClassID);
+                            break;  
+
                         case "help":
                             // PrintHelp();
                             // List all commands
@@ -841,15 +847,10 @@ class CLIDatabase
         String username = arguments.ElementAt(0);
         MySqlCommand query;
 
-        String grabGrades = "SELECT category.name AS Category, assignment.class_ID, ( SUM(grade.value) / SUM(assignment.point_value) ) * 100 as grade_percentage " +
-                            "FROM assignment " +
-                            "JOIN grade ON assignment.assignment_ID = grade.assignment_ID " +
-                            "JOIN category ON assignment.category_ID = category.category_ID " +
-                            "JOIN student ON grade.student_ID = student.student_ID " +
-                            "WHERE assignment.class_ID = @class_ID AND student.username = @username " +
-                            "GROUP BY category.name ";
-
-        query = new MySqlCommand(grabGrades, connection);
+        String grabTotalGrades = "SELECT category.name AS Category, assignment.class_ID, (SUM( IFNULL(grade.value, 0) ) / SUM( IFNULL(assignment.point_value, 0) )) * 100 as grade_percentage FROM assignment LEFT JOIN category ON assignment.category_ID = category.category_ID LEFT JOIN class ON class.class_ID = assignment.class_ID JOIN enrollment ON class.class_ID = enrollment.class_ID LEFT JOIN student ON student.student_ID = enrollment.student_ID LEFT JOIN grade ON grade.assignment_ID = assignment.assignment_ID AND grade.student_ID = student.student_ID WHERE assignment.class_ID = @class_ID AND student.username = @username GROUP BY category.name ";
+        String attemptedGrades = "SELECT category.name AS Category, assignment.class_ID, (SUM( IFNULL(grade.value, 0) ) / SUM( IF (grade.value IS NULL, 0, assignment.point_value) ) ) * 100 as grade_percentage FROM assignment LEFT JOIN category ON assignment.category_ID = category.category_ID LEFT JOIN class ON class.class_ID = assignment.class_ID JOIN enrollment ON class.class_ID = enrollment.class_ID LEFT JOIN student ON student.student_ID = enrollment.student_ID LEFT JOIN grade ON grade.assignment_ID = assignment.assignment_ID AND grade.student_ID = student.student_ID WHERE assignment.class_ID = @class_ID AND student.username = @username GROUP BY category.name ";
+        
+        query = new MySqlCommand(grabTotalGrades, connection);
         
         query.Parameters.AddWithValue("@class_ID", classID);
         query.Parameters.AddWithValue("@username", username);
@@ -882,19 +883,47 @@ class CLIDatabase
         String finalGrade = "SELECT SUM(grade_percentage * weight) as total_grade " +
                             "FROM category " +
                             "JOIN (" +
-                            grabGrades +
+                            grabTotalGrades +
                             ") as temp ON category.class_ID = temp.class_ID AND category.name = temp.Category";
+
+        String attemptedTotalGrade = "SELECT SUM( IF(grade_percentage is NULL, 0, grade_percentage * weight) ) as total_grade " +
+                                "FROM category " +
+                                "JOIN (" +
+                                attemptedGrades +
+                                ") as temp ON category.class_ID = temp.class_ID AND category.name = temp.Category";
+
+        // String attemptedTotalGrade = "SELECT SUM(grade_percentage_for_category * weight) as attempted_grade FROM category JOIN ( SELECT category.name as Category, assignment.class_ID, (SUM(IFNULL(grade.value, 0)) / SUM( IF (grade.value IS NULL, 0, assignment.point_value) ) ) * 100 as grade_percentage_for_category FROM assignment LEFT JOIN category ON assignment.category_ID = category.category_ID LEFT JOIN class ON class.class_ID = assignment.class_ID JOIN enrollment ON class.class_ID = enrollment.class_ID LEFT JOIN student ON student.student_ID = enrollment.student_ID LEFT JOIN grade ON grade.assignment_ID = assignment.assignment_ID AND grade.student_ID = student.student_ID WHERE assignment.class_ID = @class_ID AND student.username = @username GROUP BY category.name ) as temp ON category.class_ID = temp.class_ID AND category.name = temp.Category ";
+
         
         query = new MySqlCommand(finalGrade, connection);
         query.Parameters.AddWithValue("@class_ID", classID);
         query.Parameters.AddWithValue("@username", username);
 
-        Object lines = query.ExecuteScalar();
-        decimal totalGrade = Convert.ToDecimal(lines);
+        Object lines;
+        decimal totalGrade, attemptedGrade;
+
+        lines = query.ExecuteScalar();
+        totalGrade = Convert.ToDecimal(lines);
 
         Console.WriteLine($"Total Grade: {totalGrade}");
+        Console.WriteLine("----------------------------------------");
+
+        query = new MySqlCommand(attemptedTotalGrade, connection);
+        query.Parameters.AddWithValue("@class_ID", classID);
+        query.Parameters.AddWithValue("@username", username);
+
+        lines = query.ExecuteScalar();
+        attemptedGrade = Convert.ToDecimal(lines);
+
+        Console.WriteLine($"Attempted Grade: {attemptedGrade}");
 
         return true;
+    }
+
+    //
+    static void GradeBook(MySqlConnection connection, int classID)
+    {
+
     }
 
     //
