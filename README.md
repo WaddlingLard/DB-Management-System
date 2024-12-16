@@ -16,7 +16,6 @@ Even though this started as a group project, we both wanted to challenge ourselv
 
 Unfortunately, we didn't have enough time to 100% complete every aspect of the project. We didn't get to fully implement the gradebook method due to a lack of time. It's not that we don't know how to do it, it just couldn't be done. It sucks that this is what bottlenecks us in the end and not anything technical, but we could have also decided to start things earlier. Regardless, the experience of having to connect this new territory of Computer Science we've been learning about in class to the area we have had plenty of time in has been quite novel. There was a fair amount of challenge involved in making some of the methods, but most of that can be attributed to the query-making. Overall, we both had a good experience with this final project. 
 
-
 ## Compiling and Using
 
 All commands will be executed through the command line alongside the relevant arguments. To see which commands are available, use the help command for
@@ -34,7 +33,7 @@ dotnet run
 ## Results
 
 As far as we are concerned, the program works the way we want it to. there may be some far-out edge-case bugs that we haven't caught, but
-they don't seem to impact the general usage of the program. Unfortunately, not everything is fully incorporated, but about 90% of the total scope of the project has been achieved.
+they don't seem to impact the general usage of the program.
 
 ## Sources used
 
