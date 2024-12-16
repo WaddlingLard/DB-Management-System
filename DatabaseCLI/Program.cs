@@ -9,6 +9,8 @@ using MySql.Data.MySqlClient;
 // Used for the List
 using System.Collections;
 using System.Runtime.InteropServices;
+using System.Globalization;
+using System.Diagnostics;
 
 class CLIDatabase 
 {
@@ -179,6 +181,18 @@ class CLIDatabase
                             if (!Grade(db, arguments, selectedClassID))
                             {
                                 Console.WriteLine("Something went wrong when creating a grade.");                                
+                            }
+                            break;
+
+                        case "student-grades":
+                            if(!classSelected)
+                            {
+                                Console.WriteLine("Class not selected.");
+                                break;
+                            }
+                            if(!StudentGrade(db, arguments, selectedClassID))
+                            {
+                                Console.WriteLine("This command requires an argument. Ex: show-assignment [Username]");
                             }
                             break;
                         case "help":
@@ -814,6 +828,143 @@ class CLIDatabase
         }
 
         return insertedRow == 1;
+    }
+
+    static Boolean StudentGrade(MySqlConnection connection, List<String> arguments, int classID)
+    {
+        // command [Username]
+        if (arguments.Count != 1)
+        {
+            return false;
+        }
+
+        String username = arguments.ElementAt(0);
+        MySqlCommand query;
+
+        String grabGrades = "SELECT category.name AS Category, assignment.class_ID, ( SUM(grade.value) / SUM(assignment.point_value) ) * 100 as grade_percentage " +
+                            "FROM assignment " +
+                            "JOIN grade ON assignment.assignment_ID = grade.assignment_ID " +
+                            "JOIN category ON assignment.category_ID = category.category_ID " +
+                            "JOIN student ON grade.student_ID = student.student_ID " +
+                            "WHERE assignment.class_ID = @class_ID AND student.username = @username " +
+                            "GROUP BY category.name ";
+
+        query = new MySqlCommand(grabGrades, connection);
+        
+        query.Parameters.AddWithValue("@class_ID", classID);
+        query.Parameters.AddWithValue("@username", username);
+
+        using (MySqlDataReader grades = query.ExecuteReader())
+        {
+            Console.WriteLine("Category | Current Grade (out of 100) ");
+            Console.WriteLine(CLIDatabase.whitespaceBorder);
+
+            while (grades.Read())
+            {
+                String category = grades.GetString("Category");
+                decimal grade = grades.GetDecimal("grade_percentage");
+
+                Console.WriteLine($"{category} | {grade}");
+            }
+
+            grades.Close();
+        }
+
+        // Console.WriteLine("Scaling Weights");
+        (List<int> categoryIDs, List<decimal> weights) = ScaleWeights(connection, classID);
+        
+        if (!UpdateWeights(connection, weights, categoryIDs))
+        {
+            Console.WriteLine("Something went wrong updating weights");
+            return false;
+        }
+
+        String finalGrade = "SELECT SUM(grade_percentage * weight) as total_grade " +
+                            "FROM category " +
+                            "JOIN (" +
+                            grabGrades +
+                            ") as temp ON category.class_ID = temp.class_ID AND category.name = temp.Category";
+        
+        query = new MySqlCommand(finalGrade, connection);
+        query.Parameters.AddWithValue("@class_ID", classID);
+        query.Parameters.AddWithValue("@username", username);
+
+        Object lines = query.ExecuteScalar();
+        decimal totalGrade = Convert.ToDecimal(lines);
+
+        Console.WriteLine($"Total Grade: {totalGrade}");
+
+        return true;
+    }
+
+    //
+    static (List<int>, List<decimal>) ScaleWeights(MySqlConnection connection, int classID)
+    {
+        List<int> categoryIDs = new List<int>();
+        List<decimal> weights = new List<decimal>();
+
+        String select = "SELECT * FROM category WHERE class_ID = @class_ID";
+        MySqlCommand query = new MySqlCommand(select, connection);
+
+        query.Parameters.AddWithValue("@class_ID", classID);
+
+        using (MySqlDataReader lines = query.ExecuteReader()) 
+        {
+            while (lines.Read())
+            {
+                categoryIDs.Add(lines.GetInt16("category_ID"));
+                weights.Add(lines.GetDecimal("weight"));
+            }
+
+            lines.Close();
+        }
+
+        decimal[] aggregate = weights.ToArray();
+        decimal total = aggregate.Sum();
+
+        // Console.WriteLine($"Total is {total}");
+
+        List<decimal> newWeights = new List<decimal>();
+        for (int i = 0; i < weights.Count; i++)
+        {
+            newWeights.Add(aggregate[i] / total);
+        }
+
+        // Modified weights
+        return (categoryIDs, newWeights);
+    }
+
+    //
+    static Boolean UpdateWeights(MySqlConnection connection, List<decimal> weights, List<int> category_IDs)
+    {
+        String update = "UPDATE category SET weight = @weight WHERE category_ID = @category_ID";
+        MySqlCommand query;
+
+        int insertedRow;
+
+        try
+        {
+            for (int i = 0; i < weights.Count; i++)
+            {
+                // Console.WriteLine($"Updating {category_IDs.ElementAt(i)} : to {weights.ElementAt(i)} ");
+                query = new MySqlCommand(update, connection);
+                query.Parameters.AddWithValue("@weight", weights[i]);
+                query.Parameters.AddWithValue("@category_ID", category_IDs[i]);
+
+                insertedRow = query.ExecuteNonQuery();
+
+                if (insertedRow != 1)
+                {
+                    return false;
+                }
+            }
+        }
+        catch (MySqlException e)
+        {
+            return false;
+        }
+
+        return true;
     }
 
     //
