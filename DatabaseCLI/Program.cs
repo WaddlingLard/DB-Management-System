@@ -241,13 +241,17 @@ class CLIDatabase
             return false;
         }
 
-        String select = "SELECT * FROM class";
+        String select = "SELECT class.*, COUNT(enrollment.class_ID) AS number_of_students " +
+                        "FROM class " +
+                        "LEFT JOIN enrollment ON class.class_ID = enrollment.class_ID " +
+                        "GROUP BY class.class_ID";
+                        
         MySqlCommand query = new MySqlCommand(select, connection);
 
         using (MySqlDataReader lines = query.ExecuteReader())
         {
 
-            Console.WriteLine("Class_ID | Course_Number | Term | Section_Number | Description");
+            Console.WriteLine("Class_ID | Course_Number | Term | Section_Number | Description | Number of Students Enrolled");
             Console.WriteLine(CLIDatabase.whitespaceBorder);
             while (lines.Read())
             {
@@ -256,8 +260,9 @@ class CLIDatabase
                 String term = lines.GetString("term");
                 int sectionNumber = lines.GetInt16("section_number");
                 String description = lines.GetString("description");
-                
-                Console.WriteLine($"{courseID} | {courseNumber} | {term} | {sectionNumber} | {description}");
+                int numStudents = lines.GetInt16("number_of_students");
+
+                Console.WriteLine($"{courseID} | {courseNumber} | {term} | {sectionNumber} | {description} | {numStudents}");
             }
 
             lines.Close();
